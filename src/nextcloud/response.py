@@ -4,6 +4,15 @@ from json import JSONDecodeError
 from .api_wrappers.webdav import WebDAVStatusCodes
 
 
+def map_result_data(what, where):
+    def decorator(wrapped):
+        def wrapper(* args, ** kwargs)
+            ret = wrapped(* args, ** kwargs)
+            return ret
+        return wrapper
+    return decorator
+
+
 class NextCloudResponse(object):
 
     def __init__(self, response, json_output=True, data=None):

@@ -96,6 +96,18 @@ class WebDAV(WithRequester):
         with open(filename, 'wb') as f:
             f.write(res.data)
 
+    def upload_file_content(self, uid, content, remote_filepath):
+        """
+        Upload file to Nextcloud storage
+        Args:
+            uid (str): uid of user
+            content (bytes): The raw file content
+            remote_filepath (str): path where to upload file on Nextcloud storage
+        Returns:
+        """
+        additional_url = "/".join([uid, remote_filepath])
+        return self.requester.put(additional_url, data=content)
+
     def upload_file(self, uid, local_filepath, remote_filepath):
         """
         Upload file to Nextcloud storage
@@ -106,9 +118,8 @@ class WebDAV(WithRequester):
         Returns:
         """
         with open(local_filepath, 'rb') as f:
-            file_content = f.read()
-        additional_url = "/".join([uid, remote_filepath])
-        return self.requester.put(additional_url, data=file_content)
+            content = f.read()
+        return self.upload_file_content(uid, content, remote_filepath)
 
     def create_folder(self, uid, folder_path):
         """
@@ -119,6 +130,31 @@ class WebDAV(WithRequester):
         Returns:
         """
         return self.requester.make_collection(additional_url="/".join([uid, folder_path]))
+
+    def assure_folder_exists(self, uid, folder_path):
+        """
+        Create folder on Nextcloud storage, don't do anything if the folder already exists.
+        Args:
+            uid (str): uid of user
+            folder_path (str): folder path
+        Returns:
+        """
+        ret = self.create_folder(uid, folder_path)
+        return True
+
+    def assure_tree_exists(self, uid, tree_path):
+        """
+        Make sure that the folder structure on Nextcloud storage exists
+        Args:
+            uid (str): uid of user
+            folder_path (str): The folder tree
+        Returns:
+        """
+        tree = pathlib.PurePath(tree_path)
+        parents = [f for f in tree.parents]
+        for subf in parents[::-1]:
+            ret = self.assure_folder_exists(uid, subf)
+        return ret
 
     def delete_path(self, uid, path):
         """
