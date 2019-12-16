@@ -18,6 +18,73 @@ class WithRequester(object):
         return self._requester
 
 
+class NextcloudError(RuntimeError):
+    def __init__(self, msg, code=None):
+        super().__init__(msg)
+        self.code = code
+
+
+class MapResultData:
+    def __init__(self, where=None, what=None):
+        """
+        Args:
+            where: To which attribute to map the result
+            what: How to get the result
+        """
+        self.where = where
+        self.what = what
+
+    def _get_error(self, result):
+        raise NotImplementedError()
+
+    def _map_result(self, result):
+        raise NotImplementedError()
+
+    def __call__(self, wrapped):
+        def wrapper(* args, ** kwargs):
+            res = wrapped(* args, ** kwargs)
+            if res.is_ok:
+                if self.where:
+                    self._map_result(res)
+            else:
+                raise self._get_error(res)
+            return res
+            wrapped.__doc__ = self._update_doc(wrapped.__doc__)
+        return wrapper
+
+    def _update_doc(self, original_doc):
+        return original_doc
+
+
+class WebDavMRD(MapResultData):
+    def _get_error(self, result):
+        exc = NextcloudError(result.raw.reason, result.raw.status_code)
+        return exc
+
+
+class OCSMRD(MapResultData):
+    def _map_result(self, result):
+        if self.what:
+            setattr(result, self.where, result.data[self.what])
+        else:
+            setattr(result, self.where, result.data)
+
+    def _result_doc_string(self):
+        ret = ""
+        if self.what:
+            ret = "The result is available as .data[XXX] key, or the .YYY attribute"
+        return ret
+
+    def _update_doc(self, original_doc):
+        if ":return:" in original_doc:
+            doc = original_doc + "\n" + self._result_doc_string()
+        return doc
+
+    def _get_error(self, result):
+        exc = NextcloudError(result.meta['message'], result.meta['statuscode'])
+        return exc
+
+
 class OCSCode(enum.IntEnum):
     OK = 100
     SERVER_ERROR = 996
