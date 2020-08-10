@@ -90,8 +90,11 @@ class WebDAV(WithRequester):
                               else file_data.data[0].resource_type)
         if file_resource_type == File.COLLECTION_RESOURCE_TYPE:
             raise ValueError("This is a collection, please specify file path")
+        """
+        # This is really weird
         if filename in os.listdir('./'):
             raise ValueError("File with such name already exists in this directory")
+        """
         res = self.requester.download(additional_url)
         with open(filename, 'wb') as f:
             f.write(res.data)
